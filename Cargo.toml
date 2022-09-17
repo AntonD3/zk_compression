@@ -4,3 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+franklin-crypto = {git = "https://github.com/matter-labs/franklin-crypto", branch = "dev", features = ["multicore"]}
+rescue_poseidon = {git = "https://github.com/matter-labs/rescue-poseidon.git"}
