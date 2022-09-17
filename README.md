@@ -8,10 +8,10 @@ Of course, this algorithm can be used for any other tasks, as you can easily pro
 
 ## Tech specification
 ### Algorithm description
-We want to make an algorithm that will be efficient with storage transition data. Rollups with contracts usually use the next(or similar) format for storage transition record:
+We want to make an algorithm that will be efficient with storage transition data. ZK rollups with contracts(or some other way for state interaction) usually use the next(or similar) format for storage transition record:
 `(address, key, new_value)`.
 #### Storage keys
-But actually, most of the contracts are written on solidity and vyper. And they used the first storage slots for non-dynamic state variables. So actually most of the keys in storage transition are really small numbers(start with zeroes in binary format). We can encode the key like one byte(number of zeroes on start). One byte because it can contain 256 different numbers and the maximum number of zeroes - 256. When the number of zeroes == 0 we can just write the key without such optimization.
+But actually, most of the contracts are written on solidity and vyper. And they used the first storage slots for non-dynamic state variables. So actually most of the keys in storage transition are really small numbers(start with zeroes in binary format). We can encode the key like one byte for number of zero bytes and then non-zero part. When the number of zero bytes == 0 we can just write the key without such optimization.
 
 Let's tell about dynamic arrays, strings, and bytes(Note: from this point, we will not explain what to do with strings, because strings are totally the same in storage with bytes). For dynamic arrays and bytes with size > 31, you can compute the slot of an element like `keccak256(small_slot_number) + some_small_value`, this two values can be compressed with the same algorithm as for static state variables(because they are usually so small). So you are saving the preimage of keccak256 and offset instead of the slot number.
 
@@ -36,13 +36,13 @@ Every variable in encoded data will start with such byte and then you can uncomp
 2. value == 1 - uncompressed 20-bytes value(address)
 3. value == 2 - the next bytes contain two values `preimage` and `offset` which encoded like in 5-th type. And you can compute original values like `keccak256(preimage) + offset`.
 4. value == 3 - the reference to some dictionary value. How dictionary value is stored will be explained below.
-5. value >= 7 - that's number which starts with `value + 1` zeroes and in next `256 - (value + 1)` bits non-zero suffix of data. (It's enough, because if the value starts with less than
+5. value >= 11 && value <= 42 - that's number which starts with `value - 10` zero bytes and in next `32 - (value - 10)` bytes non-zero suffix of data.
 
 Some more notes:
 - If for some value compression was non-effective, you will write it just like uncompressed (first 2 types).
 - Dictionary values saving at the beginning. It's 20 bytes values (addresses). And first two bytes of all compressed data - number of dictionary words, then values. And after that compressed values.
 - Note that this algorithm can be easily changed if the format or size of the field is other.
-- There are 4 free values for type byte(4, 5, 6, 7). So the algorithm can be easily extended.
+- There are a lot free values for type byte(4 - 10, 43 - 255). So the algorithm can be easily extended.
 
 There are implementations of compression and uncompression.
 
