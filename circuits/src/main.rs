@@ -71,5 +71,10 @@ fn main() {
     let valid =
         verify::<Bn256, TestCircuit<Bn256>, RollingKeccakTranscript<Fr>>(&vk, &proof, None)
             .unwrap();
-    assert!(valid);
+
+    if valid {
+        println!("Ура нахуй!");
+    } else {
+        println!("Пиздец");
+    }
 }

@@ -27,36 +27,6 @@ pub use franklin_crypto::{
 };
 use franklin_crypto::plonk::circuit::Assignment;
 
-// pub struct CompressionCircuit<E: Engine> {
-//
-// }
-//
-// impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
-//     type MainGate = Width4MainGateWithDNext;
-//
-//     fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
-//         let columns = vec![
-//             PolyIdentifier::VariablesPolynomial(0),
-//             PolyIdentifier::VariablesPolynomial(1),
-//             PolyIdentifier::VariablesPolynomial(2),
-//         ];
-//         let range_table = LookupTableApplication::new_range_table_of_width_3(16, columns.clone())?;
-//         let range_table_name = range_table.functional_name();
-//
-//         let xor_table = LookupTableApplication::new_xor_table(2, columns.clone())?;
-//         let xor_table_name = xor_table.functional_name();
-//
-//         let and_table = LookupTableApplication::new_and_table(2, columns)?;
-//         let and_table_name = and_table.functional_name();
-//
-//         cs.add_table(range_table)?;
-//         cs.add_table(xor_table)?;
-//         cs.add_table(and_table)?;
-//
-//         Ok(())
-//     }
-// }
-
 pub struct TestCircuit<E: Engine> {
     pub a: Option<E::Fr>,
     pub b: Option<E::Fr>
@@ -66,6 +36,15 @@ impl<E: Engine> Circuit<E> for TestCircuit<E> {
     type MainGate = Width4MainGateWithDNext;
 
     fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
+        let columns = vec![
+            PolyIdentifier::VariablesPolynomial(0),
+            PolyIdentifier::VariablesPolynomial(1),
+            PolyIdentifier::VariablesPolynomial(2),
+        ];
+        let range_table = LookupTableApplication::new_range_table_of_width_3(8, columns.clone())?;
+        let range_table_name = range_table.functional_name();
+        cs.add_table(range_table)?;
+
         let a = Num::Variable(AllocatedNum::alloc_input(cs, || Ok(*self.a.get()?))?);
         let b = Num::Variable(AllocatedNum::alloc_input(cs, || Ok(*self.b.get()?))?);
 
@@ -75,10 +54,45 @@ impl<E: Engine> Circuit<E> for TestCircuit<E> {
         let mut allocated_bytes_a = vec![];
         let mut allocated_bytes_b = vec![];
         for byte in bytes_a.iter() {
-            allocated_bytes_a.push(Byte::from_u8_witness(cs, *byte)?)
+            // allocated_bytes_a.push(Byte::from_u8_witness(cs, *byte)?);
+            let inner = Num::alloc(
+                cs,
+                Some(E::Fr::from_str(&format!("{}", byte.unwrap())).unwrap())
+            )?;
+
+            let table = cs.get_table(&range_table_name)?;
+            let num_keys_and_values = table.width();
+
+            let var_zero = cs.get_explicit_zero()?;
+            let dummy = CS::get_dummy_variable();
+
+            let inner_var = inner.get_variable().get_variable();
+            let vars = [inner_var, var_zero.clone(), var_zero.clone(), dummy];
+
+            cs.begin_gates_batch_for_step()?;
+
+            cs.allocate_variables_without_gate(
+                &vars,
+                &[]
+            )?;
+
+            cs.apply_single_lookup_gate(&vars[..num_keys_and_values], table)?;
+            cs.end_gates_batch_for_step()?;
+
+
+
+            allocated_bytes_a.push(Byte{inner});
         }
         for byte in bytes_b.iter() {
-            allocated_bytes_b.push(Byte::from_u8_witness(cs, *byte)?)
+            // allocated_bytes_b.push(Byte::from_u8_witness(cs, *byte)?)
+            allocated_bytes_b.push(
+                Byte{
+                    inner: Num::alloc(
+                        cs,
+                        Some(E::Fr::from_str(&format!("{}", byte.unwrap())).unwrap())
+                    )?
+                }
+            );
         }
 
         for (a, b) in allocated_bytes_a.iter().zip(
