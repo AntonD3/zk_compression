@@ -27,9 +27,9 @@ pub use franklin_crypto::{
 };
 use franklin_crypto::plonk::circuit::Assignment;
 
-pub const MAX_COMPRESSED_DATA_SIZE: usize = 297;// 33 * 9
-pub const MAX_UNCOMPRESSED_DATA_SIZE: usize = 288;// 32 * 9
-pub const MAX_WORDS: usize = 9;
+pub const MAX_COMPRESSED_DATA_SIZE: usize = 99;// 33 * 3
+pub const MAX_UNCOMPRESSED_DATA_SIZE: usize = 96;// 32 * 3
+pub const MAX_WORDS: usize = 3;
 
 ///
 /// The main circuit structure.
@@ -63,7 +63,7 @@ impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
 
         // TODO: prove hashes correctness
 
-        let compressed_data_len = Num::alloc(
+        let _compressed_data_len = Num::alloc(
             cs,
             self.compressed_data_len
         )?;

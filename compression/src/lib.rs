@@ -8,6 +8,8 @@ mod tests;
 pub const ADDRESS_SIZE: usize = 20;
 pub const KEY_VALUE_SIZE: usize = 32;
 
+pub use sha3;
+
 ///
 /// Storage transition rust representation.
 ///

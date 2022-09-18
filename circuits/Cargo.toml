@@ -7,6 +7,8 @@ edition = "2021"
 franklin-crypto = {git = "https://github.com/matter-labs/franklin-crypto", branch = "dev", features = ["multicore"]}
 rescue_poseidon = {git = "https://github.com/matter-labs/rescue-poseidon.git"}
 
+compression = {path = "../compression"}
+
 [[bin]]
 name = "circuits-test"
 path = "src/main.rs"

@@ -17,6 +17,9 @@ use franklin_crypto::bellman::{
     },
     worker::Worker,
 };
+use compression::StorageTransition;
+use compression::sha3;
+use compression::sha3::Digest;
 
 pub(crate) mod utils;
 mod main_circuit;
@@ -24,12 +27,25 @@ mod main_circuit;
 use crate::main_circuit::CompressionCircuit;
 
 fn main() {
+    let transitions = vec![StorageTransition {
+        address: [221, 31, 123, 46, 34, 67, 213, 90, 55, 0, 12, 54, 222, 56, 77, 0, 132, 12, 1, 5],
+        key: [31, 8, 32, 23, 2, 65, 222, 1, 34, 0, 6, 0, 234, 0, 0, 243, 0, 0, 22, 0, 0, 0, 234, 0, 122, 65, 33, 0, 4, 0, 4, 11],
+        value: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 222, 131, 5],
+        meta: None
+    }];
+
+    let data = StorageTransition::into_bytes(transitions.clone());
+    let compressed_data = StorageTransition::compress(transitions);
     let mut circuit = CompressionCircuit::<Bn256>{
-        data: vec![],
-        compressed_data: vec![],
-        data_hash: vec![],
-        compressed_data_hash: vec![Some(1)],
-        compressed_data_len: Some(Fr::from_repr(FrRepr([1, 0, 0, 0])).unwrap()),
+        data: data.clone().into_iter().map(|byte| Some(byte)).collect(),
+        compressed_data: compressed_data.clone().into_iter().map(|byte| Some(byte)).collect(),
+        data_hash: sha3::Keccak256::digest(
+            data.as_slice()
+        ).as_slice().to_vec().into_iter().map(|byte| Some(byte)).collect::<Vec<Option<u8>>>(),
+        compressed_data_hash: sha3::Keccak256::digest(
+            compressed_data.as_slice()
+        ).as_slice().to_vec().into_iter().map(|byte| Some(byte)).collect::<Vec<Option<u8>>>(),
+        compressed_data_len: Some(Fr::from_repr(FrRepr([compressed_data.len() as u64, 0, 0, 0])).unwrap()),
     };
 
     let old_worker = Worker::new();
