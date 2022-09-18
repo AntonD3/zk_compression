@@ -10,5 +10,5 @@ rescue_poseidon = {git = "https://github.com/matter-labs/rescue-poseidon.git"}
 compression = {path = "../compression"}
 
 [[bin]]
-name = "circuits-test"
+name = "circuits-run"
 path = "src/main.rs"

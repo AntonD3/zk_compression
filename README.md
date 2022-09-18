@@ -65,10 +65,10 @@ For storage transitions for some simple contracts the compression can make data 
 
 ## How to use it
 
-For run tests for non-circuit part(it's includes effectivity tests) you should use:
+To run tests for non-circuit part(it's includes effectivity tests) you should use:
 
 `cargo test -- --nocapture`
 
-For example with ZKP generation and validation:
+Example with ZKP generation and validation:
 
-`cargo run --bin circuits-test`
+`cargo run --bin circuits-run`

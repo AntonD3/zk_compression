@@ -27,8 +27,8 @@ pub use franklin_crypto::{
 };
 use franklin_crypto::plonk::circuit::Assignment;
 
-pub const MAX_COMPRESSED_DATA_SIZE: usize = 99;// 33 * 3
-pub const MAX_UNCOMPRESSED_DATA_SIZE: usize = 96;// 32 * 3
+pub const MAX_COMPRESSED_DATA_SIZE: usize = 132;// 33 * 3 + 33
+pub const MAX_UNCOMPRESSED_DATA_SIZE: usize = 129;// 32 * 3 + 33
 pub const MAX_WORDS: usize = 3;
 
 ///
@@ -68,7 +68,7 @@ impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
             self.compressed_data_len
         )?;
 
-        let ptr = Num::alloc(
+        let mut ptr = Num::alloc(
             cs,
             Some(E::Fr::from_str("0").unwrap())
         )?;
@@ -91,15 +91,15 @@ impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
             if size == 20 {
                 let mut is1 = Num::equals(cs,&compressed_word[0].inner, &one)?;
                 for i in 0..20 {
-                    let eq = Num::equals(cs, &data_bytes[uncompressed_pos + i].inner, &compressed_word[i].inner)?;
+                    let eq = Num::equals(cs, &data_bytes[uncompressed_pos + i].inner, &compressed_word[i + 1].inner)?;
                     is1 = Boolean::and(cs, &is1, &eq)?;
                 }
                 ok = is1;
-                let twenty = Num::alloc(
+                let _21 = Num::alloc(
                     cs,
-                    Some(E::Fr::from_str("20").unwrap())
+                    Some(E::Fr::from_str("21").unwrap())
                 )?;
-                ptr.add(cs, &twenty)?;
+                ptr = ptr.add(cs, &_21)?;
             } else {
                 let mut is0 = Num::equals(cs,&compressed_word[0].inner, &zero)?;
                 for i in 0..32 {
@@ -108,7 +108,7 @@ impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
                 }
                 ok = Boolean::or(cs, &ok, &is0)?;
 
-                for i in 11..=32 {
+                for i in 11..=42 {
                     let i_num = Num::alloc(
                         cs,
                         Some(E::Fr::from_str(&format!("{}", i)).unwrap())
@@ -125,11 +125,11 @@ impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
                     }
                     ok = Boolean::or(cs, &ok, &is)?;
                 }
-                let _32 = Num::alloc(
+                let _33 = Num::alloc(
                     cs,
-                    Some(E::Fr::from_str("32").unwrap())
+                    Some(E::Fr::from_str("33").unwrap())
                 )?;
-                ptr.add(cs, &_32)?;
+                ptr = ptr.add(cs, &_33)?;
             }
             // TODO: Add 2 byte type
             let true_bool = Boolean::alloc(cs, Some(true))?;
@@ -193,16 +193,21 @@ fn get_word_from_bytes<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, bytes: &
             cs,
             Some(E::Fr::from_str("0").unwrap())
         )?;
-        let res_byte = Byte::from_num(cs, zero)?;
+        let mut index_num = Num::alloc(
+            cs,
+            Some(E::Fr::from_str(&format!("{}", index)).unwrap())
+        )?;
+        index_num = index_num.add(cs, pos)?;
+        let mut res_byte = Byte::from_num(cs, zero)?;
         for (i, byte) in bytes.iter().enumerate() {
             let i_num = Num::alloc(
                 cs,
                 Some(E::Fr::from_str(&format!("{}", i)).unwrap())
             )?;
-            let flag = Num::equals(cs,&i_num, pos)?;
-            let flag = Num::from_boolean_is(flag);
-            flag.mul(cs, &byte.inner);
-            res_byte.inner.add(cs, &flag);
+            let flag = Num::equals(cs,&i_num, &index_num)?;
+            let mut flag = Num::from_boolean_is(flag);
+            flag = flag.mul(cs, &byte.inner)?;
+            res_byte.inner = res_byte.inner.add(cs, &flag)?;
         }
         result.push(res_byte);
     }
