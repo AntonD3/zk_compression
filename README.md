@@ -1,4 +1,7 @@
 # ZK Compression
+
+![](mem.jpg)
+
 ## Motivation
 Today there are a lot of rollups(both zk and optimistic) and the most valuable part of the transaction price - is fees for publishing calldata. And we are going to develop a toolset that will make rollups much cheaper.  
 
@@ -51,14 +54,21 @@ There are implementations of compression and uncompression.
 We are going to prove that if we uncompress data it will be the same with some start data. Few points about implementation:
 - Of course, the sizes of inputs will be limited. Two inputs will be public - hashes of compressed and uncompressed data
 - We support ptr[N] variable which will refer to the compressed value. Once ptr[N] is uncompressed we know the ptr[N+1].
-- Reading of data for uncompressing will take O(n) constraints(n - size)
+- Reading of uncompressing data will take O(n) constraints(n - size). So the number of constraints will be O(n^2). But in future it can be optimized with iterating over bytes.
 - Prooving dictionary access can be done with merkle tree for O(log(n)) hashes, n - max number of values in the dictionary. The best hash for it - is `rescue`. But unfortunately, this part is not finished yet.
-- For circuits, we used rust and the next crypto-libraries: `franklin-crypto`, `bellman`, `rescue-poseidon`.
+
+## Tests
+
+For storage transitions for some simple contracts the compression can make data less for 70%. But actually for popular contracts(there are ERC20 example) we can remove 30% of data.
+
+#### So this tool potentially can make rollup 30% cheaper!
 
 ## How to use it
 
-todo()!
+For run tests for non-circuit part(it's includes effectivity tests) you should use:
 
-## Real world tests
+`cargo test -- --nocapture`
 
-todo()!
+For example with ZKP generation and validation:
+
+`cargo run --bin circuits-test`
