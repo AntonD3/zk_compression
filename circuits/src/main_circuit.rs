@@ -27,12 +27,19 @@ pub use franklin_crypto::{
 };
 use franklin_crypto::plonk::circuit::Assignment;
 
-pub struct TestCircuit<E: Engine> {
-    pub a: Option<E::Fr>,
-    pub b: Option<E::Fr>
+pub const MAX_COMPRESSED_DATA_SIZE: usize = 100;
+pub const MAX_UNCOMPRESSED_DATA_SIZE: usize = 100;
+pub const MAX_WORDS: usize = 10;
+
+pub struct CompressionCircuit<E: Engine> {
+    pub data: Vec<Option<u8>>,
+    pub compressed_data: Vec<Option<u8>>,
+    pub data_hash: Vec<Option<u8>>,
+    pub compressed_data_hash: Vec<Option<u8>>,
+    pub compressed_data_len: Option<E::Fr>,
 }
 
-impl<E: Engine> Circuit<E> for TestCircuit<E> {
+impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
     type MainGate = Width4MainGateWithDNext;
 
     fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
@@ -45,92 +52,63 @@ impl<E: Engine> Circuit<E> for TestCircuit<E> {
         let range_table_name = range_table.functional_name();
         cs.add_table(range_table)?;
 
-        let a = Num::Variable(AllocatedNum::alloc_input(cs, || Ok(*self.a.get()?))?);
-        let b = Num::Variable(AllocatedNum::alloc_input(cs, || Ok(*self.b.get()?))?);
+        let compressed_data_hash_bytes = allocate_and_prove_bytes(&self.compressed_data_hash, cs, range_table_name.as_str(), true);
+        let data_hash = allocate_and_prove_bytes(&self.data_hash, cs, range_table_name.as_str(), true);
 
-        let bytes_a = get_bytes(&self.a);
-        let bytes_b = get_bytes(&self.b);
+        let compressed_data_bytes = allocate_and_prove_bytes(&self.compressed_data, cs, range_table_name.as_str(), false);
+        let data_bytes = allocate_and_prove_bytes(&self.data, cs, range_table_name.as_str(), false);
 
-        let mut allocated_bytes_a = vec![];
-        let mut allocated_bytes_b = vec![];
-        for byte in bytes_a.iter() {
-            // allocated_bytes_a.push(Byte::from_u8_witness(cs, *byte)?);
-            let inner = Num::alloc(
-                cs,
-                Some(E::Fr::from_str(&format!("{}", byte.unwrap())).unwrap())
-            )?;
+        // TODO: prove hashes correctness
 
-            let table = cs.get_table(&range_table_name)?;
-            let num_keys_and_values = table.width();
+        let compressed_data_len = Num::alloc(
+            cs,
+            self.compressed_data_len
+        )?;
 
-            let var_zero = cs.get_explicit_zero()?;
-            let dummy = CS::get_dummy_variable();
+        let ptr = cs.get_explicit_zero();
 
-            let inner_var = inner.get_variable().get_variable();
-            let vars = [inner_var, var_zero.clone(), var_zero.clone(), dummy];
+        for word in 0..MAX_WORDS {
 
-            cs.begin_gates_batch_for_step()?;
-
-            cs.allocate_variables_without_gate(
-                &vars,
-                &[]
-            )?;
-
-            cs.apply_single_lookup_gate(&vars[..num_keys_and_values], table)?;
-            cs.end_gates_batch_for_step()?;
-
-
-
-            allocated_bytes_a.push(Byte{inner});
         }
-        for byte in bytes_b.iter() {
-            // allocated_bytes_b.push(Byte::from_u8_witness(cs, *byte)?)
-            allocated_bytes_b.push(
-                Byte{
-                    inner: Num::alloc(
-                        cs,
-                        Some(E::Fr::from_str(&format!("{}", byte.unwrap())).unwrap())
-                    )?
-                }
-            );
-        }
-
-        for (a, b) in allocated_bytes_a.iter().zip(
-            allocated_bytes_b.iter().rev()
-        ) {
-            a.inner.enforce_equal(cs, &b.inner)?;
-        }
-
-        let mut a_bytes_sum = Num::zero();
-        let coeff = Num::Constant(E::Fr::from_str("256").unwrap());
-        for byte in allocated_bytes_a.iter().rev() {
-            a_bytes_sum = a_bytes_sum.mul(cs, &coeff)?;
-            a_bytes_sum = a_bytes_sum.add(cs, &byte.inner)?;
-        }
-        a_bytes_sum.enforce_equal(cs, &a)?;
-
-        let mut b_bytes_sum = Num::zero();
-        let coeff = Num::Constant(E::Fr::from_str("256").unwrap());
-        for byte in allocated_bytes_b.iter().rev() {
-            b_bytes_sum = b_bytes_sum.mul(cs, &coeff)?;
-            b_bytes_sum = b_bytes_sum.add(cs, &byte.inner)?;
-        }
-        b_bytes_sum.enforce_equal(cs, &b)?;
-
         Ok(())
     }
 }
 
-fn get_bytes<F: PrimeField>(number: &Option<F>) -> [Option<u8>; 32]{
-    let mut result = [None; 32];
+fn allocate_and_prove_bytes<E: Engine, CS: ConstraintSystem<E>>(bytes: &Vec<Option<u8>>, cs: &mut CS, range_table_name: &str, alloc_as_inputs: bool) -> Result<Vec<Byte<E>>, SynthesisError> {
+    let mut result = Vec::with_capacity(bytes.len());
 
-    if let Some(number) = number {
-        for (i, part) in number.into_repr().as_ref().iter().enumerate() {
-            for (j, byte) in part.to_le_bytes().iter().enumerate() {
-                result[i*8 + j] = Some(*byte);
-            }
-        }
+    for byte in bytes {
+        let inner = if alloc_as_inputs {
+            Num::Variable(AllocatedNum::alloc_input(cs, || Ok(E::Fr::from_str(&format!("{}", byte.unwrap())).unwrap()))?)
+        } else {
+            Num::alloc(
+                cs,
+                Some(E::Fr::from_str(&format!("{}", byte.unwrap())).unwrap())
+            )?
+        };
+
+        let table = cs.get_table(range_table_name)?;
+        let num_keys_and_values = table.width();
+
+        let var_zero = cs.get_explicit_zero()?;
+        let dummy = CS::get_dummy_variable();
+
+        let inner_var = inner.get_variable().get_variable();
+        let vars = [inner_var, var_zero.clone(), var_zero.clone(), dummy];
+
+        cs.begin_gates_batch_for_step()?;
+
+        cs.allocate_variables_without_gate(
+            &vars,
+            &[]
+        )?;
+
+        cs.apply_single_lookup_gate(&vars[..num_keys_and_values], table)?;
+        cs.end_gates_batch_for_step()?;
+
+
+        result.push(Byte{inner});
     }
 
-    result
+    Ok(result)
 }

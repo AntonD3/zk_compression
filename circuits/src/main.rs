@@ -18,8 +18,10 @@ use franklin_crypto::bellman::{
     worker::Worker,
 };
 
+pub(crate) mod utils;
 mod main_circuit;
-use crate::main_circuit::TestCircuit;
+
+use crate::main_circuit::CompressionCircuit;
 
 fn main() {
     // let mut circuit = TestCircuit::<Bn256>{
@@ -27,13 +29,13 @@ fn main() {
     //     b: Some(Fr::from_repr(FrRepr([0, 1 << 63, 0, 0])).unwrap()),
     // };
 
-    let mut circuit = TestCircuit::<Bn256>{
-        a: Some(Fr::from_repr(FrRepr([0, (((1<<63)-1)<<1)+1, 0, 0])).unwrap()),
-        b: Some(Fr::from_repr(FrRepr([0, 0, (((1<<63)-1)<<1)+1, 0])).unwrap()),
+    let mut circuit = CompressionCircuit::<Bn256>{
+        data: vec![],
+        compressed_data: vec![],
+        data_hash: vec![],
+        compressed_data_hash: vec![Some(1)],
+        compressed_data_len: Some(Fr::from_repr(FrRepr([1, 0, 0, 0])).unwrap()),
     };
-
-    dbg!(circuit.a.as_ref().unwrap());
-    dbg!(circuit.b.as_ref().unwrap());
 
     let old_worker = Worker::new();
 
@@ -53,12 +55,12 @@ fn main() {
     let crs_mons = Crs::<Bn256, CrsForMonomialForm>::crs_42(domain_size, &old_worker);
 
     let setup = assembly
-        .create_setup::<TestCircuit<Bn256>>(&old_worker)
+        .create_setup::<CompressionCircuit<Bn256>>(&old_worker)
         .unwrap();
 
 
     let proof = assembly.clone()
-        .create_proof::<TestCircuit<Bn256>, RollingKeccakTranscript<Fr>>(
+        .create_proof::<CompressionCircuit<Bn256>, RollingKeccakTranscript<Fr>>(
             &old_worker,
             &setup,
             &crs_mons,
@@ -69,7 +71,7 @@ fn main() {
     let vk = VerificationKey::from_setup(&setup, &old_worker, &crs_mons).unwrap();
 
     let valid =
-        verify::<Bn256, TestCircuit<Bn256>, RollingKeccakTranscript<Fr>>(&vk, &proof, None)
+        verify::<Bn256, CompressionCircuit<Bn256>, RollingKeccakTranscript<Fr>>(&vk, &proof, None)
             .unwrap();
 
     if valid {
