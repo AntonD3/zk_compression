@@ -131,8 +131,6 @@ impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
                 )?;
                 ptr.add(cs, &_32)?;
             }
-            let finished =
-            ok = Boolean::
             // TODO: Add 2 byte type
             let true_bool = Boolean::alloc(cs, Some(true))?;
             Boolean::enforce_equal(cs, &ok, &true_bool)?;
