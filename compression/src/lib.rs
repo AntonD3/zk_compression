@@ -2,6 +2,8 @@
 //! The circuit free implementation of compressing and uncompressing
 //!
 mod utils;
+#[cfg(test)]
+mod tests;
 
 pub const ADDRESS_SIZE: usize = 20;
 pub const KEY_VALUE_SIZE: usize = 32;
@@ -9,7 +11,7 @@ pub const KEY_VALUE_SIZE: usize = 32;
 ///
 /// Storage transition rust representation.
 ///
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct StorageTransition {
     /// The account address.
     pub address: [u8; ADDRESS_SIZE],
@@ -146,7 +148,7 @@ impl StorageTransition {
                 _ => panic!("Invalid compressed data")
             }
         }
-
+        result.pop().expect("Always valid");
         result
     }
 }
