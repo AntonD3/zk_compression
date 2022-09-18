@@ -24,11 +24,6 @@ mod main_circuit;
 use crate::main_circuit::CompressionCircuit;
 
 fn main() {
-    // let mut circuit = TestCircuit::<Bn256>{
-    //     a: Some(Fr::from_repr(FrRepr([0, 0, 1 << 7, 0])).unwrap()),
-    //     b: Some(Fr::from_repr(FrRepr([0, 1 << 63, 0, 0])).unwrap()),
-    // };
-
     let mut circuit = CompressionCircuit::<Bn256>{
         data: vec![],
         compressed_data: vec![],
@@ -75,8 +70,6 @@ fn main() {
             .unwrap();
 
     if valid {
-        println!("Ура нахуй!");
-    } else {
-        println!("Пиздец");
+        println!("Proof is valid!😎");
     }
 }

@@ -27,10 +27,13 @@ pub use franklin_crypto::{
 };
 use franklin_crypto::plonk::circuit::Assignment;
 
-pub const MAX_COMPRESSED_DATA_SIZE: usize = 350;
-pub const MAX_UNCOMPRESSED_DATA_SIZE: usize = 300;
-pub const MAX_WORDS: usize = 10;
+pub const MAX_COMPRESSED_DATA_SIZE: usize = 297;// 33 * 9
+pub const MAX_UNCOMPRESSED_DATA_SIZE: usize = 288;// 32 * 9
+pub const MAX_WORDS: usize = 9;
 
+///
+/// The main circuit structure.
+///
 pub struct CompressionCircuit<E: Engine> {
     pub data: Vec<Option<u8>>,
     pub compressed_data: Vec<Option<u8>>,
@@ -92,6 +95,11 @@ impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
                     is1 = Boolean::and(cs, &is1, &eq)?;
                 }
                 ok = is1;
+                let twenty = Num::alloc(
+                    cs,
+                    Some(E::Fr::from_str("20").unwrap())
+                )?;
+                ptr.add(cs, &twenty)?;
             } else {
                 let mut is0 = Num::equals(cs,&compressed_word[0].inner, &zero)?;
                 for i in 0..32 {
@@ -117,7 +125,15 @@ impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
                     }
                     ok = Boolean::or(cs, &ok, &is)?;
                 }
+                let _32 = Num::alloc(
+                    cs,
+                    Some(E::Fr::from_str("32").unwrap())
+                )?;
+                ptr.add(cs, &_32)?;
             }
+            let finished =
+            ok = Boolean::
+            // TODO: Add 2 byte type
             let true_bool = Boolean::alloc(cs, Some(true))?;
             Boolean::enforce_equal(cs, &ok, &true_bool)?;
         }
@@ -125,6 +141,9 @@ impl<E: Engine> Circuit<E> for CompressionCircuit<E> {
     }
 }
 
+///
+/// Allocate byte array and prove tha values of bytes.
+///
 fn allocate_and_prove_bytes<E: Engine, CS: ConstraintSystem<E>>(bytes: &Vec<Option<u8>>, len: usize, cs: &mut CS, range_table_name: &str, alloc_as_inputs: bool) -> Result<Vec<Byte<E>>, SynthesisError> {
     let mut result = Vec::with_capacity(bytes.len());
 
@@ -165,6 +184,10 @@ fn allocate_and_prove_bytes<E: Engine, CS: ConstraintSystem<E>>(bytes: &Vec<Opti
     Ok(result)
 }
 
+
+///
+/// Read word by dynamic index from bytes array(O(n)).
+///
 fn get_word_from_bytes<E: Engine, CS: ConstraintSystem<E>>(cs: &mut CS, bytes: &Vec<Byte<E>>, pos: &Num<E>) -> Result<Vec<Byte<E>>, SynthesisError> {
     let mut result = Vec::with_capacity(33);
     for index in 0..33 {
